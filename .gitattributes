@@ -1,0 +1,2 @@
+*.ckpt filter=lfs diff=lfs merge=lfs -text
+exps/configs/lidar_radar_cam.ckpt filter=lfs diff=lfs merge=lfs -text
