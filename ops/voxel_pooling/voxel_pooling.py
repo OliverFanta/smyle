@@ -26,7 +26,7 @@ class VoxelPooling(Function):
             batch_indices = indices[b][mask[b]]
             batch_features = input_features[b][mask[b]]
             for idx, feat in zip(batch_indices, batch_features):
-                output_features[b, idx[1], idx[0]] += feat  # Sum pooling
+                output_features[b, idx[1], idx[0]] += feat.unsqueeze(0)  # Ensure correct feature dimension
 
         ctx.save_for_backward(geom_xyz, input_features, voxel_num)
         return output_features.permute(0, 3, 1, 2)
@@ -39,3 +39,4 @@ class VoxelPooling(Function):
 
 
 voxel_pooling = VoxelPooling.apply
+
