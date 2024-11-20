@@ -1,5 +1,3 @@
-
-
 H = 704
 W = 1280
 final_dim = (704, 1280)
@@ -9,15 +7,15 @@ data_root = '/kaggle/input/ni1gbe/aimack'
 eval_split = None  # Either None (i.e. use whole dataset) or in ['highway', 'urban', 'rain', 'night']
 experiment_name = 'lidar_radar_cam'
 precision = 32
-batch_size = 4
+batch_size = 1
 out_path = f'output/{experiment_name}'
 log_wandb = False
 num_workers = 8
-learning_rate = 3e-4 / 64 * batch_size
+learning_rate = 1e-3 / 64 * batch_size
 
 voxel_size = [0.2, 0.2, 8]
 out_size_factor = 4
-point_cloud_range = [4*-51.2, -51.2/2, -5, 4*51.2, 51.2/2, 3]
+point_cloud_range = [4*-51.2, 0.5*-51.2, -5, 4*51.2, 0.5*51.2, 3]
 
 use_cam   = False
 use_lidar = True
@@ -33,7 +31,6 @@ trainer_params = dict(enable_progress_bar=True,
                       devices=1,
                       )
 
-
 lidar_input_channels = 8 if use_radar else 5
 lidar_feature_channels = 256 if use_lidar else 0
 camera_feature_channels = 80 if use_cam else 0
@@ -48,49 +45,49 @@ backbone_conf = {
     'z_bound': [point_cloud_range[2], point_cloud_range[5], voxel_size[2]],
     'd_bound': [2.0, point_cloud_range[3] + 1.6, 0.5],
     'final_dim':
-    final_dim,
+        final_dim,
     'output_channels':
-    camera_feature_channels,
+        camera_feature_channels,
     'downsample_factor':
-    16,
+        16,
     'img_backbone_conf':
-    dict(
-        type='ResNet',
-        depth=50,
-        frozen_stages=0,
-        out_indices=[0, 1, 2, 3],
-        norm_eval=False,
-        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50'),
-    ),
+        dict(
+            type='ResNet',
+            depth=50,
+            frozen_stages=0,
+            out_indices=[0, 1, 2, 3],
+            norm_eval=False,
+            init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50'),
+        ),
     'img_neck_conf':
-    dict(
-        type='SECONDFPN',
-        in_channels=[256, 512, 1024, 2048],
-        upsample_strides=[0.25, 0.5, 1, 2],
-        out_channels=[128, 128, 128, 128],
-    ),
+        dict(
+            type='SECONDFPN',
+            in_channels=[256, 512, 1024, 2048],
+            upsample_strides=[0.25, 0.5, 1, 2],
+            out_channels=[128, 128, 128, 128],
+        ),
     'depth_net_conf':
-    dict(in_channels=512, mid_channels=512)
+        dict(in_channels=512, mid_channels=512)
 }
 
 ida_aug_conf = {
     'resize_lim': (1.0, 1.0),
     'final_dim':
-    final_dim,
+        final_dim,
     'rot_lim': (-0.0, 0.0),
     'H':
-    H,
+        H,
     'W':
-    W,
+        W,
     'rand_flip':
-    True,
+        True,
     'bot_pct_lim': (0.0, 0.0),
     'cams': [
         'CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT',
         'CAM_BACK', 'CAM_BACK_RIGHT'
     ],
     'Ncams':
-    6,
+        6,
 }
 
 bda_aug_conf = {
@@ -99,7 +96,6 @@ bda_aug_conf = {
     'flip_dx_ratio': 0.5,
     'flip_dy_ratio': 0.5
 }
-
 
 bev_backbone = dict(
     type='ResNet',
@@ -114,10 +110,9 @@ bev_backbone = dict(
 )
 
 bev_neck = dict(type='SECONDFPN',
-    in_channels=[160, 320, 640],
-    upsample_strides=[4, 8, 16],
-    out_channels=[64, 64, 64])
-
+                in_channels=[160, 320, 640],
+                upsample_strides=[8, 16, 32],
+                out_channels=[64, 64, 64])
 
 CLASSES = [
     'car',
@@ -142,9 +137,10 @@ common_heads = dict(reg=(2, 2),
 
 bbox_coder = dict(
     type='CenterPointBBoxCoder',
-    post_center_range=[point_cloud_range[0]-10.0, point_cloud_range[1]-10.0, -10, point_cloud_range[3]+10.0, point_cloud_range[4]+10.0, 10],
+    post_center_range=[point_cloud_range[0] - 10.0, point_cloud_range[1] - 10.0, -10, point_cloud_range[3] + 10.0,
+                       point_cloud_range[4] + 10.0, 10],
     max_num=500,
-    score_threshold=0.1,
+    score_threshold=0.0,
     out_size_factor=out_size_factor,
     voxel_size=voxel_size,
     pc_range=point_cloud_range,
@@ -160,7 +156,8 @@ train_cfg = dict(
     gaussian_overlap=0.1,
     max_objs=500,
     min_radius=2,
-    code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.3 if train_velocity else 0.0, 0.3 if train_velocity else 0.0],
+    code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.3 if train_velocity else 0.0,
+                  0.3 if train_velocity else 0.0],
 )
 
 test_cfg = dict(
@@ -185,13 +182,12 @@ head_conf = {
     'bbox_coder': bbox_coder,
     'train_cfg': train_cfg,
     'test_cfg': test_cfg,
-    'in_channels': 192, # 512,  # Equal to bev_neck output_channels.
+    'in_channels': 192,  # 512,  # Equal to bev_neck output_channels.
     'loss_cls': dict(type='GaussianFocalLoss', reduction='mean'),
     'loss_bbox': dict(type='L1Loss', reduction='mean', loss_weight=0.25),
     'gaussian_overlap': 0.1,
     'min_radius': 2,
 }
-
 
 lidar_conf = dict(
     type='MVXFasterRCNN',
