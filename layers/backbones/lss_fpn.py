@@ -379,91 +379,46 @@ class LSSFPN(nn.Module):
         return img_feat_with_depth
 
     def _forward_single_sweep(self,
-                              sweep_index,
-                              sweep_imgs,
-                              mats_dict,
-                              depth_oracle,
-                              is_return_depth=False):
-        """Forward function for single sweep.
-
-        Args:
-            sweep_index (int): Index of sweeps.
-            sweep_imgs (Tensor): Input images.
-            mats_dict (dict):
-                sensor2ego_mats(Tensor): Transformation matrix from
-                    camera to ego with shape of (B, num_sweeps,
-                    num_cameras, 4, 4).
-                intrin_mats(Tensor): Intrinsic matrix with shape
-                    of (B, num_sweeps, num_cameras, 4, 4).
-                ida_mats(Tensor): Transformation matrix for ida with
-                    shape of (B, num_sweeps, num_cameras, 4, 4).
-                sensor2sensor_mats(Tensor): Transformation matrix
-                    from key frame camera to sweep frame camera with
-                    shape of (B, num_sweeps, num_cameras, 4, 4).
-                bda_mat(Tensor): Rotation matrix for bda with shape
-                    of (B, 4, 4).
-            is_return_depth (bool, optional): Whether to return depth.
-                Default: False.
-
-        Returns:
-            Tensor: BEV feature map.
-        """
-        batch_size, num_sweeps, num_cams, num_channels, img_height, \
-            img_width = sweep_imgs.shape
+                               sweep_index,
+                               sweep_imgs,
+                               mats_dict,
+                               depth_oracle,
+                               is_return_depth=False):
+        batch_size, num_sweeps, num_cams, num_channels, img_height, img_width = sweep_imgs.shape
         img_feats = self.get_cam_feats(sweep_imgs)
+
         source_features = img_feats[:, 0, ...]
         depth_feature = self._forward_depth_net(
             source_features.reshape(batch_size * num_cams,
                                     source_features.shape[2],
-                                    source_features.shape[3],
-                                    source_features.shape[4]),
-            mats_dict,
-        )
+                                    source_features.shape[3]),
+            mats_dict)
 
-        depth = depth_feature[:, :self.depth_channels].softmax(1)
+        depth_feature = depth_feature[:, :self.depth_channels].softmax(1)
 
-        depth_feature = torch.stack([kornia.geometry.transform.hflip(features) if flipped else features for features, flipped in zip(depth_feature, mats_dict['flipped'])])
+        # Replace voxel pooling with an alternative operation
+        img_feat_with_depth = depth_feature.unsqueeze(1) * img_feats[:, 0:1, ...]  # Example operation
 
-        if depth_oracle is not None:
-            b, c, h, w = depth.shape
-            fg_mask = (torch.max(depth_oracle, dim=1).values > 0.0).view(-1)
-            depth_flattened = depth.permute(0, 2, 3, 1).contiguous().view(-1, c)
-            depth_oracle_flattened = depth_oracle.permute(0, 2, 3, 1).contiguous().view(-1, c)
-            depth_updated = depth_flattened
-            depth_updated[fg_mask] = depth_oracle_flattened[fg_mask]
-            depth_updated = depth_updated.view(b, h, w, c).permute(0, 3, 1, 2)
-
-            img_feat_with_depth = depth_updated.unsqueeze(
-                1) * depth_feature[:, self.depth_channels:(
-                    self.depth_channels + self.output_channels)].unsqueeze(2)
-
-        else:
-            img_feat_with_depth = depth.unsqueeze(
-                1) * depth_feature[:, self.depth_channels:(
-                    self.depth_channels + self.output_channels)].unsqueeze(2)
-
-        img_feat_with_depth = self._forward_voxel_net(img_feat_with_depth)
-
+        # Perform necessary reshaping
         img_feat_with_depth = img_feat_with_depth.reshape(
             batch_size,
             num_cams,
             img_feat_with_depth.shape[1],
             img_feat_with_depth.shape[2],
-            img_feat_with_depth.shape[3],
-            img_feat_with_depth.shape[4],
-        )
+            img_feat_with_depth.shape[3])
+
         geom_xyz = self.get_geometry(
             mats_dict['sensor2ego_mats'][:, sweep_index, ...],
             mats_dict['intrin_mats'][:, sweep_index, ...],
-            mats_dict.get('bda_mat', None),
-        )
-        img_feat_with_depth = img_feat_with_depth.permute(0, 1, 3, 4, 5, 2)
-        geom_xyz = ((geom_xyz - (self.voxel_coord - self.voxel_size / 2.0)) /
-                    self.voxel_size).int()
-        feature_map = img_feat_with_depth.mean(dim=2).mean(dim=1)
+            mats_dict.get('bda_mat', None))
+
+        # Instead of voxel pooling:
+        feature_map = img_feat_with_depth.mean(dim=2)  # Example: average pooling across features
+
         if is_return_depth:
-            return feature_map.contiguous(), depth
+            return feature_map.contiguous(), depth_feature
         return feature_map.contiguous()
+
 
     def forward(self,
                 sweep_imgs,
