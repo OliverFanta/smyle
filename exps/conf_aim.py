@@ -19,10 +19,10 @@ voxel_size = [0.2, 0.2, 8]
 out_size_factor = 4
 point_cloud_range = [4*-51.2, -51.2/2, -5, 4*51.2, 51.2/2, 3]
 
-use_cam   = True
+use_cam   = False
 use_lidar = True
 use_radar = True
-use_depth_loss = True
+use_depth_loss = False
 train_velocity = False
 look_back    = 0
 look_forward = 0
