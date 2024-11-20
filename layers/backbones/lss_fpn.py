@@ -347,6 +347,12 @@ class LSSFPN(nn.Module):
                                       img_feats.shape[1], img_feats.shape[2],
                                       img_feats.shape[3])
         return img_feats
+    
+    def _forward_depth_net(self, feat, mats_dict):
+        return self.depth_net(feat, mats_dict)
+
+    def _forward_voxel_net(self, img_feat_with_depth):
+        return img_feat_with_depth
 
     def _forward_single_sweep(self,
                               sweep_index,
