@@ -233,7 +233,7 @@ def collate_aim(items: List[Tuple[DataItem, np.ndarray]]):
 
 if __name__ == '__main__':
     root_dir = Path('/s/home/gabor.nemeth/repos/OpenPCDet/data/custom')
-    root_directory = "/kaggle/input/aimify/aimotive"
+    root_directory = "/kaggle/input/ni1gbe/aimack"
     train_dataset = AiMotiveDataset(root_directory, split='train')
     loader = tdata.DataLoader(train_dataset, batch_size=2, shuffle=True, collate_fn=collate_aim)
     for d in loader:
